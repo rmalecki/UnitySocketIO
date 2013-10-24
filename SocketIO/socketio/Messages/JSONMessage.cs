@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Collections;
  
 
 namespace SocketIOClient.Messages
@@ -10,12 +11,16 @@ namespace SocketIOClient.Messages
     {
         public void SetMessage(object value)
         {
-            this.MessageText = SimpleJson.SimpleJson.SerializeObject(value);
+            //this.MessageText = SimpleJson.SimpleJson.SerializeObject(value);
+			this.MessageText = JSON.JsonEncode(value);
+			UnityEngine.Debug.Log("JSONMessage:SetMessage: " + this.MessageText);
         }
 
-        public virtual T Message<T>()
+        public virtual T Message<T>() where T : new()
         {
-            try { return SimpleJson.SimpleJson.DeserializeObject<T>(this.MessageText); }
+			UnityEngine.Debug.Log("JSONMessage:Message: " + this.MessageText);
+            //try { return SimpleJson.SimpleJson.DeserializeObject<T>(this.MessageText); }
+			try { return JsonHelper<T>.objectFromJson((Hashtable)JSON.JsonDecode(this.MessageText)); }
             catch (Exception ex)
             {
                 // add error logging here
@@ -30,18 +35,23 @@ namespace SocketIOClient.Messages
 		 public JSONMessage(object jsonObject):this()
         {
    
-            this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
+            //this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
+			this.MessageText = JsonHelper<object>.jsonFromObject(jsonObject);
+			UnityEngine.Debug.Log("JSONMessage: " + jsonObject + " = " + this.MessageText);
         }
 		
         public JSONMessage(object jsonObject, int? ackId  , string endpoint ):this()
         {
             this.AckId = ackId;
             this.Endpoint = endpoint;
-            this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
+            //this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
+			this.MessageText = JsonHelper<object>.jsonFromObject(jsonObject);
+			UnityEngine.Debug.Log("JSONMessage: " + jsonObject + " = " + this.MessageText);
         }
 
         public static JSONMessage Deserialize(string rawMessage)
         {
+			UnityEngine.Debug.Log("JSONMessage:Deserialize: " + rawMessage);
 			JSONMessage jsonMsg = new JSONMessage();
             //  '4:' [message id ('+')] ':' [message endpoint] ':' [json]
             //   4:1::{"a":"b"}

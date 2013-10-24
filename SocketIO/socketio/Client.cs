@@ -595,8 +595,10 @@ namespace SocketIOClient
 			{ 
 				try
 				{
+					UnityEngine.Debug.Log(uri);
 					value = client.DownloadString(string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query)); // #5 tkiley: The uri.Query is available in socket.io's handshakeData object during authorization
 					// 13052140081337757257:15:25:websocket,htmlfile,xhr-polling,jsonp-polling
+					UnityEngine.Debug.Log(value);
 					if (string.IsNullOrEmpty(value))
 						errorText = "Did not receive handshake string from server";
 				}
@@ -604,6 +606,7 @@ namespace SocketIOClient
 				{
 					errorText = string.Format("Error getting handsake from Socket.IO host instance: {0}", ex.Message);
 					//this.OnErrorEvent(this, new ErrorEventArgs(errMsg));
+					UnityEngine.Debug.LogError(ex);
 				}
 			}
 			if (string.IsNullOrEmpty(errorText))

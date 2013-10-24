@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using SimpleJson.Reflection;
+using System.Collections;
+//using SimpleJson.Reflection;
 
 namespace SocketIOClient.Messages
 {
@@ -28,13 +29,14 @@ namespace SocketIOClient.Messages
             this.Args = payloads;
         }
 
-        public T GetFirstArgAs<T>()
+        public T GetFirstArgAs<T>() where T : new()
         {
             try
             {
                 var firstArg = this.Args.FirstOrDefault();
                 if (firstArg != null)
-                    return SimpleJson.SimpleJson.DeserializeObject<T>(firstArg.ToString());
+                    //return SimpleJson.SimpleJson.DeserializeObject<T>(firstArg.ToString());
+					return JsonHelper<T>.objectFromJson((Hashtable)JSON.JsonDecode(firstArg.ToString()));
             }
             catch (Exception ex)
             {
@@ -43,25 +45,29 @@ namespace SocketIOClient.Messages
             }
             return default(T);
         }
-        public IEnumerable<T> GetArgsAs<T>()
+        public IEnumerable<T> GetArgsAs<T>() where T : new()
         {
             List<T> items = new List<T>();
             foreach (var i in this.Args)
             {
-                items.Add( SimpleJson.SimpleJson.DeserializeObject<T>(i.ToString()) );
+                //items.Add( SimpleJson.SimpleJson.DeserializeObject<T>(i.ToString()) );
+				items.Add(JsonHelper<T>.objectFromJson((Hashtable)JSON.JsonDecode(i.ToString())));
             }
             return items.AsEnumerable();
         }
 
         public string ToJsonString()
         {
-            return SimpleJson.SimpleJson.SerializeObject(this);
+            //return SimpleJson.SimpleJson.SerializeObject(this);
+			return JSON.JsonEncode(this);
         }
 
         public static JsonEncodedEventMessage Deserialize(string jsonString)
         {
+			UnityEngine.Debug.Log(jsonString);
 			JsonEncodedEventMessage msg = null;
-			try { msg = SimpleJson.SimpleJson.DeserializeObject<JsonEncodedEventMessage>(jsonString); }
+			//try { msg = SimpleJson.SimpleJson.DeserializeObject<JsonEncodedEventMessage>(jsonString); }
+			try { msg = JsonHelper<JsonEncodedEventMessage>.objectFromJson((Hashtable)JSON.JsonDecode(jsonString)); }
 			catch (Exception ex)
 			{
 				Trace.WriteLine(ex);

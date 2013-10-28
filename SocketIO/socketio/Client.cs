@@ -145,29 +145,30 @@ namespace SocketIOClient
 					try
 					{
 						this.ConnectionOpenEvent.Reset();
-						this.HandShake = this.requestHandshake(uri);// perform an initial HTTP request as a new, non-handshaken connection
-
-						if (this.HandShake == null || string.IsNullOrEmpty(this.HandShake.SID) || this.HandShake.HadError)
-						{
-							this.LastErrorMessage = string.Format("Error initializing handshake with {0}", uri.ToString());
-							this.OnErrorEvent(this, new ErrorEventArgs(this.LastErrorMessage, new Exception()));
-						}
-						else
-						{
-							string wsScheme = (uri.Scheme == Uri.UriSchemeHttps ? "wss" : "ws");
-							this.wsClient = new WebSocket(
-								string.Format("{0}://{1}:{2}/socket.io/1/websocket/{3}", wsScheme, uri.Host, uri.Port, this.HandShake.SID),
-								string.Empty,
-								this.socketVersion);
-							this.wsClient.EnableAutoSendPing = true; // #4 tkiley: Websocket4net client library initiates a websocket heartbeat, causes delivery problems
-							this.wsClient.Opened += this.wsClient_OpenEvent;
-							this.wsClient.MessageReceived += this.wsClient_MessageReceived;
-							this.wsClient.Error += this.wsClient_Error;
-
-							this.wsClient.Closed += wsClient_Closed;
-
-							this.wsClient.Open();
-						}
+						this.requestHandshake(uri, handshake => {
+							this.HandShake = handshake;	
+							if (this.HandShake == null || string.IsNullOrEmpty(this.HandShake.SID) || this.HandShake.HadError)
+							{
+								this.LastErrorMessage = string.Format("Error initializing handshake with {0}", uri.ToString());
+								this.OnErrorEvent(this, new ErrorEventArgs(this.LastErrorMessage, new Exception()));
+							}
+							else
+							{
+								string wsScheme = (uri.Scheme == Uri.UriSchemeHttps ? "wss" : "ws");
+								this.wsClient = new WebSocket(
+									string.Format("{0}://{1}:{2}/socket.io/1/websocket/{3}", wsScheme, uri.Host, uri.Port, this.HandShake.SID),
+									string.Empty,
+									this.socketVersion);
+								this.wsClient.EnableAutoSendPing = true; // #4 tkiley: Websocket4net client library initiates a websocket heartbeat, causes delivery problems
+								this.wsClient.Opened += this.wsClient_OpenEvent;
+								this.wsClient.MessageReceived += this.wsClient_MessageReceived;
+								this.wsClient.Error += this.wsClient_Error;
+	
+								this.wsClient.Closed += wsClient_Closed;
+	
+								this.wsClient.Open();
+							}
+						});
 					}
 					catch (Exception ex)
 					{
@@ -585,39 +586,29 @@ namespace SocketIOClient
 		/// <param name="uri">http://localhost:3000</param>
 		/// <returns>Handshake object with sid value</returns>
 		/// <example>DownloadString: 13052140081337757257:15:25:websocket,htmlfile,xhr-polling,jsonp-polling</example>
-		protected SocketIOHandshake requestHandshake(Uri uri)
+		protected void requestHandshake(Uri uri, Action<SocketIOHandshake> callback)
 		{
 			string value = string.Empty;
 			string errorText = string.Empty;
 			SocketIOHandshake handshake = null;
-
-			using (WebClient client = new WebClient())
-			{ 
-				try
-				{
-					UnityEngine.Debug.Log(uri);
-					value = client.DownloadString(string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query)); // #5 tkiley: The uri.Query is available in socket.io's handshakeData object during authorization
-					// 13052140081337757257:15:25:websocket,htmlfile,xhr-polling,jsonp-polling
-					UnityEngine.Debug.Log(value);
-					if (string.IsNullOrEmpty(value))
-						errorText = "Did not receive handshake string from server";
+			
+			HTTP.Request request = new HTTP.Request("get", string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query));
+			request.Send(req => {
+				if (request.response != null) {
+					value = request.response.Text;
 				}
-				catch (Exception ex)
+				UnityEngine.Debug.Log(value);
+				if (string.IsNullOrEmpty(value))
+					errorText = "Did not receive handshake string from server";
+				if (string.IsNullOrEmpty(errorText))
+					handshake = SocketIOHandshake.LoadFromString(value);
+				else
 				{
-					errorText = string.Format("Error getting handsake from Socket.IO host instance: {0}", ex.Message);
-					//this.OnErrorEvent(this, new ErrorEventArgs(errMsg));
-					UnityEngine.Debug.LogError(ex);
+					handshake = new SocketIOHandshake();
+					handshake.ErrorMessage = errorText;
 				}
-			}
-			if (string.IsNullOrEmpty(errorText))
-				handshake = SocketIOHandshake.LoadFromString(value);
-			else
-			{
-				handshake = new SocketIOHandshake();
-				handshake.ErrorMessage = errorText;
-			}
-
-			return handshake;
+				callback(handshake);
+			});
 		}
 
 		public void Dispose()

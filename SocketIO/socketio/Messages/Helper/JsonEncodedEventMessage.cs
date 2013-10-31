@@ -64,7 +64,7 @@ namespace SocketIOClient.Messages
 
         public static JsonEncodedEventMessage Deserialize(string jsonString)
         {
-			UnityEngine.Debug.Log(jsonString);
+			//UnityEngine.Debug.Log(jsonString);
 			JsonEncodedEventMessage msg = null;
 			//try { msg = SimpleJson.SimpleJson.DeserializeObject<JsonEncodedEventMessage>(jsonString); }
 			try { msg = JsonHelper<JsonEncodedEventMessage>.objectFromJson((Hashtable)JSON.JsonDecode(jsonString)); }

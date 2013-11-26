@@ -496,7 +496,7 @@ namespace SocketIOClient
 					try { this.SocketConnectionClosed(sender, e); }
 					catch { }
 				}
-			Trace.WriteLine("SocketConnectionClosedEvent");
+			UnityEngine.Debug.Log("SocketConnectionClosedEvent");
 		}
 		protected void OnConnectionRetryAttemptEvent(object sender, EventArgs e)
 		{
@@ -505,7 +505,7 @@ namespace SocketIOClient
 				try { this.ConnectionRetryAttempt(sender, e); }
 				catch (Exception ex) { Trace.WriteLine(ex); }
 			}
-			Trace.WriteLine(string.Format("Attempting to reconnect: {0}", this.retryConnectionCount));
+			UnityEngine.Debug.Log(string.Format("Attempting to reconnect: {0}", this.retryConnectionCount));
 		}
 
 		// Housekeeping

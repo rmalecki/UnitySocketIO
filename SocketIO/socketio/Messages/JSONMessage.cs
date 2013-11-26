@@ -13,12 +13,12 @@ namespace SocketIOClient.Messages
         {
             //this.MessageText = SimpleJson.SimpleJson.SerializeObject(value);
 			this.MessageText = JSON.JsonEncode(value);
-			UnityEngine.Debug.Log("JSONMessage:SetMessage: " + this.MessageText);
+			//UnityEngine.Debug.Log("JSONMessage:SetMessage: " + this.MessageText);
         }
 
         public virtual T Message<T>() where T : new()
         {
-			UnityEngine.Debug.Log("JSONMessage:Message: " + this.MessageText);
+			//UnityEngine.Debug.Log("JSONMessage:Message: " + this.MessageText);
             //try { return SimpleJson.SimpleJson.DeserializeObject<T>(this.MessageText); }
 			try { return JsonHelper<T>.objectFromJson((Hashtable)JSON.JsonDecode(this.MessageText)); }
             catch (Exception ex)
@@ -37,7 +37,7 @@ namespace SocketIOClient.Messages
    
             //this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
 			this.MessageText = JsonHelper<object>.jsonFromObject(jsonObject);
-			UnityEngine.Debug.Log("JSONMessage: " + jsonObject + " = " + this.MessageText);
+			//UnityEngine.Debug.Log("JSONMessage: " + jsonObject + " = " + this.MessageText);
         }
 		
         public JSONMessage(object jsonObject, int? ackId  , string endpoint ):this()
@@ -46,12 +46,12 @@ namespace SocketIOClient.Messages
             this.Endpoint = endpoint;
             //this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
 			this.MessageText = JsonHelper<object>.jsonFromObject(jsonObject);
-			UnityEngine.Debug.Log("JSONMessage: " + jsonObject + " = " + this.MessageText);
+			//UnityEngine.Debug.Log("JSONMessage: " + jsonObject + " = " + this.MessageText);
         }
 
         public static JSONMessage Deserialize(string rawMessage)
         {
-			UnityEngine.Debug.Log("JSONMessage:Deserialize: " + rawMessage);
+			//UnityEngine.Debug.Log("JSONMessage:Deserialize: " + rawMessage);
 			JSONMessage jsonMsg = new JSONMessage();
             //  '4:' [message id ('+')] ':' [message endpoint] ':' [json]
             //   4:1::{"a":"b"}

@@ -597,7 +597,7 @@ namespace SocketIOClient
 				if (request.response != null) {
 					value = request.response.Text;
 				}
-				UnityEngine.Debug.Log(value);
+				//UnityEngine.Debug.Log(value);
 				if (string.IsNullOrEmpty(value))
 					errorText = "Did not receive handshake string from server";
 				if (string.IsNullOrEmpty(errorText))

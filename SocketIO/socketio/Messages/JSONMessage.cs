@@ -15,7 +15,7 @@ namespace SocketIOClient.Messages
 			this.MessageText = JSON.JsonEncode(value);
         }
 
-        public virtual T Message<T>() where T : new()
+        /*public virtual T Message<T>() where T : new()
         {
             //try { return SimpleJson.SimpleJson.DeserializeObject<T>(this.MessageText); }
 			try { return JsonHelper<T>.objectFromJson((Hashtable)JSON.JsonDecode(this.MessageText)); }
@@ -24,25 +24,25 @@ namespace SocketIOClient.Messages
                 // add error logging here
                 throw;
             }
-        }
+        }*/
 
         public JSONMessage()
         {
             this.MessageType = SocketIOMessageTypes.JSONMessage;
         }
-		 public JSONMessage(object jsonObject):this()
+		 public JSONMessage(Hashtable jsonObject):this()
         {
    
             //this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
-			this.MessageText = JsonHelper<object>.jsonFromObject(jsonObject);
+			this.MessageText = JSON.JsonEncode(jsonObject);
         }
 		
-        public JSONMessage(object jsonObject, int? ackId  , string endpoint ):this()
+        public JSONMessage(Hashtable jsonObject, int? ackId  , string endpoint ):this()
         {
             this.AckId = ackId;
             this.Endpoint = endpoint;
             //this.MessageText = SimpleJson.SimpleJson.SerializeObject(jsonObject );
-			this.MessageText = JsonHelper<object>.jsonFromObject(jsonObject);
+			this.MessageText = JSON.JsonEncode(jsonObject);
         }
 
         public static JSONMessage Deserialize(string rawMessage)

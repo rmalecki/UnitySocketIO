@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 //using System.Threading.Tasks;
@@ -262,7 +263,7 @@ namespace SocketIOClient
 					if (payload is string)
 						msg = new TextMessage() { MessageText = payload.ToString() };
 					else
-						msg = new JSONMessage(payload);
+						msg = new JSONMessage((Hashtable)payload);
 					this.Send(msg);
 					break;
 				case "connect":

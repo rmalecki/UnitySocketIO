@@ -593,12 +593,11 @@ namespace SocketIOClient
 			string errorText = string.Empty;
 			SocketIOHandshake handshake = null;
 			
-			HTTP.Request request = new HTTP.Request("get", string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query));
+			UnityHTTP.Request request = new UnityHTTP.Request("get", string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query));
 			request.Send(req => {
 				if (request.response != null) {
 					value = request.response.Text;
 				}
-				//UnityEngine.Debug.Log(value);
 				if (string.IsNullOrEmpty(value))
 					errorText = "Did not receive handshake string from server";
 				if (string.IsNullOrEmpty(errorText))

@@ -13,7 +13,7 @@ namespace SocketIOClient
 
 		SocketIOHandshake HandShake { get; }
 		bool IsConnected { get; }
-		WebSocket4Net.WebSocketState ReadyState { get; }
+		WebSocketNew.WebSocketState ReadyState { get; }
 
 		void Connect();
 		IEndPointClient Connect(string endPoint);

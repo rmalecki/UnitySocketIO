@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,40 +8,58 @@ using System.Net;
 using System.Threading;
 using SocketIOClient.Eventing;
 using SocketIOClient.Messages;
-using WebSocket4Net;
+using WebSocketNew;
 
-namespace SocketIOClient
-{
+namespace SocketIOClient { 
+
+
+    public sealed class WebsocketSharpFactory : IWebsocketFactory
+    {
+
+        public IWebsocket Build(WebsocketConfiguration config)
+        {
+            var socket = WebSocketExecutor.GetInstance();
+            socket.config = config;
+            return socket;
+        }
+
+        /*public IDelayedExecutor GetDelayedExecutor()
+        {
+            return DelayedExecutorComponent.GetInstance();
+        }*/
+    }
+
 	/// <summary>
 	/// Class to emulate socket.io javascript client capabilities for .net classes
 	/// </summary>
 	/// <exception cref = "ArgumentException">Connection for wss or https urls</exception>  
 	public class Client : IDisposable, SocketIOClient.IClient
 	{
-		private Timer socketHeartBeatTimer; // HeartBeat timer 
+        // FIXME
+        //private Timer socketHeartBeatTimer; // HeartBeat timer 
+        private uint socketHeartBeatTimer;
 		//private Task dequeuOutBoundMsgTask;
-		private Thread dequeuOutBoundMsgTask;
-		private ConcurrentQueue<string> outboundQueue;
+        // FIXME
+		//private Thread dequeuOutBoundMsgTask;
+		private Queue<string> outboundQueue;
 		private int retryConnectionCount = 0;
 		private int retryConnectionAttempts = 3;
 		private readonly static object padLock = new object(); // allow one connection attempt at a time
+        private UnityEngine.MonoBehaviour behaviour;
 
-		/// <summary>
-		/// Uri of Websocket server
-		/// </summary>
-		protected Uri uri;
+        /// <summary>
+        /// Uri of Websocket server
+        /// </summary>
+        protected Uri uri;
 		/// <summary>
 		/// Underlying WebSocket implementation
 		/// </summary>
-		protected WebSocket wsClient;
+		protected IWebsocket wsClient;
 		/// <summary>
 		/// RegistrationManager for dynamic events
 		/// </summary>
 		protected RegistrationManager registrationManager;  // allow registration of dynamic events (event names) for client actions
-		/// <summary>
-		/// By Default, use WebSocketVersion.Rfc6455
-		/// </summary>
-		protected WebSocketVersion socketVersion = WebSocketVersion.Rfc6455;
+		
 
 		// Events
 		/// <summary>
@@ -84,11 +101,12 @@ namespace SocketIOClient
 		/// Value of the last error message text  
 		/// </summary>
 		public string LastErrorMessage = "";
+        private WebsocketSharpFactory socketFactory;
 
-		/// <summary>
-		/// Represents the initial handshake parameters received from the socket.io service (SID, HeartbeatTimeout etc)
-		/// </summary>
-		public SocketIOHandshake HandShake { get; private set; }
+        /// <summary>
+        /// Represents the initial handshake parameters received from the socket.io service (SID, HeartbeatTimeout etc)
+        /// </summary>
+        public SocketIOHandshake HandShake { get; private set; }
 
 		/// <summary>
 		/// Returns boolean of ReadyState == WebSocketState.Open
@@ -116,22 +134,19 @@ namespace SocketIOClient
 		}
 
 		// Constructors
-		public Client(string url)
-			: this(url, WebSocketVersion.Rfc6455)
-		{
-		}
-
-		public Client(string url, WebSocketVersion socketVersion)
-		{
-			this.uri = new Uri(url);
-
-			this.socketVersion = socketVersion;
+		public Client(UnityEngine.MonoBehaviour behaviour, string url)
+        {
+            this.behaviour = behaviour;
+            this.uri = new Uri(url);
+                       
 
 			this.registrationManager = new RegistrationManager();
-			this.outboundQueue =  (new ConcurrentQueue<string>());
-			this.dequeuOutBoundMsgTask = new Thread(new ThreadStart(dequeuOutboundMessages));
+			this.outboundQueue =  (new Queue<string>());
+            // FIXME
+            behaviour.StartCoroutine(DequeuOutboundMessages());
+			//this.dequeuOutBoundMsgTask = new Thread(new ThreadStart(dequeuOutboundMessages));
 			//this.dequeuOutBoundMsgTask = Task.Factory.StartNew(() => dequeuOutboundMessages(), TaskCreationOptions.LongRunning);
-			this.dequeuOutBoundMsgTask.Start();
+			//this.dequeuOutBoundMsgTask.Start();
 		}
 
 		/// <summary>
@@ -146,7 +161,7 @@ namespace SocketIOClient
 					try
 					{
 						this.ConnectionOpenEvent.Reset();
-						this.requestHandshake(uri, handshake => {
+                        behaviour.StartCoroutine(this.requestHandshake(uri, handshake => {
 							this.HandShake = handshake;	
 							if (this.HandShake == null || string.IsNullOrEmpty(this.HandShake.SID) || this.HandShake.HadError)
 							{
@@ -156,20 +171,26 @@ namespace SocketIOClient
 							else
 							{
 								string wsScheme = (uri.Scheme == Uri.UriSchemeHttps ? "wss" : "ws");
-								this.wsClient = new WebSocket(
-									string.Format("{0}://{1}:{2}/socket.io/1/websocket/{3}", wsScheme, uri.Host, uri.Port, this.HandShake.SID),
-									string.Empty,
-									this.socketVersion);
-								this.wsClient.EnableAutoSendPing = true; // #4 tkiley: Websocket4net client library initiates a websocket heartbeat, causes delivery problems
-								this.wsClient.Opened += this.wsClient_OpenEvent;
-								this.wsClient.MessageReceived += this.wsClient_MessageReceived;
-								this.wsClient.Error += this.wsClient_Error;
-	
-								this.wsClient.Closed += wsClient_Closed;
-	
-								this.wsClient.Open();
+                                var _uri = new Uri(
+                                    string.Format("{0}://{1}:{2}/socket.io/1/websocket/{3}", wsScheme, uri.Host, uri.Port, this.HandShake.SID));
+
+                                if (socketFactory == null)
+                                {
+                                    socketFactory = new WebsocketSharpFactory();
+                                }
+                                var config = new WebsocketConfiguration()
+                                {
+                                    uri = _uri,
+                                    onOpenCallback = this.wsClient_OpenEvent,
+                                    onCloseCallback = wsClient_Closed,
+                                    onErrorCallback = this.wsClient_Error,
+                                    onMessageCallback = this.wsClient_MessageReceived
+                                };
+                                this.wsClient = socketFactory.Build(config);
+                                
+                                wsClient.Connect();                                	
 							}
-						});
+						}));
 					}
 					catch (Exception ex)
 					{
@@ -336,7 +357,7 @@ namespace SocketIOClient
 			var handler = this.Message;
 			if (handler != null && !skip)
 			{
-				Trace.WriteLine(string.Format("webSocket_OnMessage: {0}", msg.RawMessage));
+				//UnityEngine.Debug.Log(string.Format("webSocket_OnMessage: {0}", msg.RawMessage));
 				handler(this, new MessageEventArgs(msg));
 			}
 		}
@@ -366,11 +387,15 @@ namespace SocketIOClient
 		protected void closeHeartBeatTimer()
 		{
 			// stop the heartbeat timer
-			if (this.socketHeartBeatTimer != null)
+			if (this.socketHeartBeatTimer != 0)
 			{
+                DelayedExecutorComponent.GetInstance().Cancel(socketHeartBeatTimer);
+                socketHeartBeatTimer = 0;
+                /*
 				this.socketHeartBeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
 				this.socketHeartBeatTimer.Dispose();
 				this.socketHeartBeatTimer = null;
+                */
 			}
 		}
 		protected void closeOutboundQueue()
@@ -389,10 +414,12 @@ namespace SocketIOClient
 			if (this.wsClient != null)
 			{
 				// unwire events
-				this.wsClient.Closed -= this.wsClient_Closed;
+				/*
+                this.wsClient.Closed -= this.wsClient_Closed;
 				this.wsClient.MessageReceived -= wsClient_MessageReceived;
 				this.wsClient.Error -= wsClient_Error;
 				this.wsClient.Opened -= this.wsClient_OpenEvent;
+                */
 
 				if (this.wsClient.State == WebSocketState.Connecting || this.wsClient.State == WebSocketState.Open)
 				{
@@ -404,10 +431,15 @@ namespace SocketIOClient
 		}
 
 		// websocket client events - open, messages, errors, closing
-		private void wsClient_OpenEvent(object sender, EventArgs e)
+		private void wsClient_OpenEvent(IWebsocket socket)
 		{
-			this.socketHeartBeatTimer = new Timer(OnHeartBeatTimerCallback, new object(), HandShake.HeartbeatInterval, HandShake.HeartbeatInterval);
-			this.ConnectionOpenEvent.Set();
+            UnityEngine.Debug.LogWarning("wsClient_OpenEvent");
+            UnityEngine.Debug.Log(string.Format("Heartbeat every {0} seconds", HandShake.HeartbeatInterval));
+            this.socketHeartBeatTimer =
+                DelayedExecutorComponent.GetInstance().Execute(OnHeartBeatTimerCallback, HandShake.HeartbeatInterval);
+                // new Timer(OnHeartBeatTimerCallback, new object(), HandShake.HeartbeatInterval, HandShake.HeartbeatInterval);
+			
+            this.ConnectionOpenEvent.Set();
 
 			this.OnMessageEvent(new EventMessage() { Event = "open" });
 			if (this.Opened != null)
@@ -423,12 +455,12 @@ namespace SocketIOClient
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private void wsClient_MessageReceived(object sender, MessageReceivedEventArgs e)
+		private void wsClient_MessageReceived(IWebsocket socket, string data)
 		{
-				
-			IMessage iMsg = SocketIOClient.Messages.Message.Factory(e.Message);
-			
-			if (iMsg.Event == "responseMsg")
+			IMessage iMsg = SocketIOClient.Messages.Message.Factory(data);
+            //UnityEngine.Debug.Log(string.Format("wsClient_MessageReceived: {0}", iMsg));
+
+            if (iMsg.Event == "responseMsg")
 				Trace.WriteLine(string.Format("InvokeOnEvent: {0}", iMsg.RawMessage));
 			switch (iMsg.MessageType)
 			{
@@ -438,7 +470,7 @@ namespace SocketIOClient
 						this.Close();
 					break;
 				case SocketIOMessageTypes.Heartbeat:
-					this.OnHeartBeatTimerCallback(null);
+					this.OnHeartBeatTimerCallback();
 					break;
 				case SocketIOMessageTypes.Connect:
 				case SocketIOMessageTypes.Message:
@@ -461,7 +493,7 @@ namespace SocketIOClient
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private void wsClient_Closed(object sender, EventArgs e)
+		private void wsClient_Closed(IWebsocket socket, ushort code, string reason)
 		{
 			if (this.retryConnectionCount < this.RetryConnectionAttempts   )
 			{
@@ -475,9 +507,9 @@ namespace SocketIOClient
 			}
 		}
 
-		private void wsClient_Error(object sender, SuperSocket.ClientEngine.ErrorEventArgs e)
+		private void wsClient_Error(IWebsocket socket, string message)
 		{
-			this.OnErrorEvent(sender, new ErrorEventArgs("SocketClient error", e.Exception));
+			this.OnErrorEvent(socket, new ErrorEventArgs("SocketClient error", new System.Exception(message)));
 		}
 
 		protected void OnErrorEvent(object sender, ErrorEventArgs e)
@@ -510,11 +542,12 @@ namespace SocketIOClient
 		}
 
 		// Housekeeping
-		protected void OnHeartBeatTimerCallback(object state)
+		protected void OnHeartBeatTimerCallback(/*object state*/)
 		{
 			if (this.ReadyState == WebSocketState.Open)
 			{
-				IMessage msg = new Heartbeat();
+                //UnityEngine.Debug.Log("Heartbeat");
+                IMessage msg = new Heartbeat();
 				try
 				{
 					if (this.outboundQueue != null)
@@ -531,8 +564,11 @@ namespace SocketIOClient
 					// 
 					Trace.WriteLine(string.Format("OnHeartBeatTimerCallback Error Event: {0}\r\n\t{1}", ex.Message, ex.InnerException));
 				}
-			}
-		}
+                // send again
+                this.socketHeartBeatTimer =
+                   DelayedExecutorComponent.GetInstance().Execute(OnHeartBeatTimerCallback, HandShake.HeartbeatInterval);
+            }
+        }
 		private void EndAsyncEvent(IAsyncResult result)
 		{
 			var ar = (System.Runtime.Remoting.Messaging.AsyncResult)result;
@@ -551,30 +587,33 @@ namespace SocketIOClient
 		/// <summary>
 		/// While connection is open, dequeue and send messages to the socket server
 		/// </summary>
-		protected void dequeuOutboundMessages()
+		protected IEnumerator DequeuOutboundMessages()
 		{
 			while (this.outboundQueue != null)
 			{
 				if (this.ReadyState == WebSocketState.Open)
 				{
-					string msgString;
-					try
-					{
-						if (this.outboundQueue.TryDequeue(out msgString))
-						{
-							this.wsClient.Send(msgString);
-						}
-						else
-							this.MessageQueueEmptyEvent.Set();
-					}
-					catch(Exception ex)
-					{
-						Trace.WriteLine("The outboundQueue is no longer open...");
-					}
+                    if (outboundQueue.Count > 0)
+                    {
+                        try
+                        {
+                            this.wsClient.Send(outboundQueue.Dequeue());
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.WriteLine("The outboundQueue is no longer open...");
+                        }
+                    }
+                    else
+                    {
+                        this.MessageQueueEmptyEvent.Set();
+                        yield return 0;
+                    }					
 				}
 				else
 				{
-					this.ConnectionOpenEvent.WaitOne(2000); // wait for connection event
+                    yield return new UnityEngine.WaitForSeconds(2);
+					//this.ConnectionOpenEvent.WaitOne(2000); // wait for connection event
 				}
 			}
 		}
@@ -587,16 +626,19 @@ namespace SocketIOClient
 		/// <param name="uri">http://localhost:3000</param>
 		/// <returns>Handshake object with sid value</returns>
 		/// <example>DownloadString: 13052140081337757257:15:25:websocket,htmlfile,xhr-polling,jsonp-polling</example>
-		protected void requestHandshake(Uri uri, Action<SocketIOHandshake> callback)
+		protected IEnumerator requestHandshake(Uri uri, Action<SocketIOHandshake> callback)
 		{
 			string value = string.Empty;
 			string errorText = string.Empty;
 			SocketIOHandshake handshake = null;
-			
-			UnityHTTP.Request request = new UnityHTTP.Request("get", string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query));
+
+            var request = new UnityEngine.WWW(string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query));
+            yield return request;
+            /*UnityHTTP.Request request = new UnityHTTP.Request("get", string.Format("{0}://{1}:{2}/socket.io/1/{3}", uri.Scheme, uri.Host, uri.Port, uri.Query));
 			request.Send(req => {
-				if (request.response != null) {
-					value = request.response.Text;
+                */
+           	if (request.error == null) {
+					value = request.text;
 				}
 				if (string.IsNullOrEmpty(value))
 					errorText = "Did not receive handshake string from server";
@@ -608,7 +650,7 @@ namespace SocketIOClient
 					handshake.ErrorMessage = errorText;
 				}
 				callback(handshake);
-			});
+			//});
 		}
 
 		public void Dispose()

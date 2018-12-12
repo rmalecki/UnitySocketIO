@@ -20,7 +20,8 @@ namespace SocketIOClient.Messages
         
 		public JsonEncodedEventMessage(string name, object payload) : this(name, new[]{payload})
         {
-
+            this.Name = name;
+            this.Args = new object[] { payload };
         }
         
 		public JsonEncodedEventMessage(string name, object[] payloads)

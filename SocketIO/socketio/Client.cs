@@ -433,8 +433,8 @@ namespace SocketIOClient {
 		// websocket client events - open, messages, errors, closing
 		private void wsClient_OpenEvent(IWebsocket socket)
 		{
-            UnityEngine.Debug.LogWarning("wsClient_OpenEvent");
-            UnityEngine.Debug.Log(string.Format("Heartbeat every {0} seconds", HandShake.HeartbeatInterval));
+            //UnityEngine.Debug.LogWarning("wsClient_OpenEvent");
+            //UnityEngine.Debug.Log(string.Format("Heartbeat every {0} seconds", HandShake.HeartbeatInterval));
             this.socketHeartBeatTimer =
                 DelayedExecutorComponent.GetInstance().Execute(OnHeartBeatTimerCallback, HandShake.HeartbeatInterval);
                 // new Timer(OnHeartBeatTimerCallback, new object(), HandShake.HeartbeatInterval, HandShake.HeartbeatInterval);
